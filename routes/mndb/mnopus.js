@@ -1,6 +1,7 @@
 const mn = require('../../db/mdb');
-const pgClient = require('pg-native');
+const pgClient = require('pg-native'); //PI для синхронной работы с Postgres, т.е., без callback и Promise
 const http = require('http');
+//WebSocketServer для отображения на клиенте текущей операции в real time.
 const WebSocket = require('ws');
 const server = http.createServer();
 const wss = new WebSocket.Server({host: 'localhost', port: 33712, path: '/progress',clientTracking: true, server: server});
@@ -32,11 +33,12 @@ function _listDocs(req,res,next) {
 	});
 }
 
+//Эта функция и препарирует документ, извлекая из него данные разных смыслов
 function _dissectDoc () {
 
 	const sqlA = "INSERT INTO AUTHORTBL (name,lastpublished) VALUES($1,to_date($2,'YYYY-MM-DD')) "
 	+"ON CONFLICT (name) DO UPDATE SET lastpublished = EXCLUDED.lastpublished RETURNING *";
-	//On CONFLICT - это фишка Postgres. На поле name в таблице AUTHORTBL приделан униувльный ключ.
+	//ON CONFLICT - это фишка Postgres. На поле name в таблице AUTHORTBL приделан униувльный ключ.
 	//Она используется здесь, чтобы избежать при вставке новой записи конфликта по полю name
 
 	const sqlO = 'INSERT INTO OPUSTBL (authorid,title,description,published) VALUES($1,$2,$3,$4) RETURNING *';
@@ -64,7 +66,7 @@ function _dissectDoc () {
 					paramsA.push(lastpublished);			
 					console.log("ParamsA: "+paramsA);									
 
-					const connStr = 'postgresql://dglunts:Qtnqf-of$Henr0!@localhost:5432/writingsdb';
+					const connStr = 'postgresql://dglunts:<SomePassword>@localhost:5432/writingsdb';
 
 					const pg = new pgClient();
 					pg.connectSync(connStr);
@@ -73,7 +75,11 @@ function _dissectDoc () {
 					var rowsA = pg.executeSync('insertA',paramsA);
 					console.log('Inserted into AUTHORTBL: id='+rowsA[0].id+' name='+rowsA[0].name+' lastpublished='+rowsA[0].lastpublished);
 					progressMsg.pgauthor = rowsA[0];
+//Для внешнего ключа в подчиненной таблице 
+//нам нужен id последней вставленной записи в главной таблице.
+//Поле id - первичный автоинкрементный ключ, и мы его получаем так:
 					let authorId = rowsA[0].id;
+
 
 					let paramsO = [];
 					paramsO = paramsO.concat([authorId,item.title,item.description,item.published.toISOString().substring(0,10)]);							
