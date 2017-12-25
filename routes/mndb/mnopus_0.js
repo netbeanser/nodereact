@@ -1,3 +1,8 @@
+////Этот файл приведен в целях иллюстрации использования callbacks при 
+//обращении к БД. Все это прекрасно работает, но из-за цикла по документам 
+// коллекции MongoDbне  - не в данном случае.
+// Работающий вариант - в модуле mmopus.js, где использовано синхронное API для доступа к Postgres
+
 const mn = require('../../db/mdb');
 const pg = require('../../db/pdb');
 const http = require('http');
@@ -7,26 +12,14 @@ const wss = new WebSocket.Server({host: 'localhost', port: 33712, path: '/progre
 
 
 wss.on('listening', () => console.log('WSS listening'));
-//wss.clients.forEach(ws => ws.send('Fuck   Ya!!!'));
+
 wss.on('connection', (ws,req) => {
 	console.log('WSS Connected: ' + req.connection.remoteAddress);
-//	ws.send('{ "mnopus": "Hi there!!!"}');
 	_dissectDoc();
 });
 
 wss.on('message',((msg) => console.log('msg')));
 wss.on('close',() => console.log('Client disconnected'));
-
-var pgClient;
-
-pgCallback = (err, client, done) => {
-	if (err) {
-		console.log('getPgClient failed: ' + err.stack);
-	}
-	pgClient = client;
-	done();
-
-}
 
 
 function _listDocs(req,res,next) {
@@ -51,12 +44,13 @@ function _dissectDoc () {
 	//On CONFLICT - это фишка Postgres. На поле name в таблице AUTHORTBL приделан униувльный ключ.
 	//Она используется здесь, чтобы избежать при вставке новой записи конфликта по полю name
 
-	const sqlO = 'INSERT INTO OPUSTBL (authorid,title,description,published) VALUES($1,$2,$3,$4) REURNING *';
+	const sqlO = 'INSERT INTO OPUSTBL (authorid,title,description,published) VALUES($1,$2,$3,$4) RETURNING *';
 
 	mn.getMongoDb()
 	.then((mdb) => {
 
-		pg.getPgClient(pgCallBack); //По-хорошеиу, надо вставлять записи в несколько таблиц в рамках транзакции
+//По-хорошеиу, надо вставлять записи в несколько таблиц в рамках транзакции
+//Но ввиду асинхронной природы NodeJS это вряд ли будет работать.
 
 		let cursor = mdb.collection('opus').find();
 		cursor.each((err,item) => {
@@ -67,7 +61,7 @@ function _dissectDoc () {
 					console.log(item);
 					if (item.name !== null){
 
-					let progressMsg = new Object(); //Сообщение для клиента о текущем обраьатываемом документе MongoDb
+					let progressMsg = new Object(); //Сообщение для клиента о текущем обрабатываемом документе MongoDb
 					progressMsg.mnopus = item;
 
 					let paramsA = [];
@@ -96,9 +90,10 @@ function _dissectDoc () {
 
 							//Здесь иы создаем отношение one-to-many между таблицами AUTHORTBL (one) и OPUSTBL (many) через ынешний ключ authorid 
 							//в таблице OPUSTBL. Поэтому нам нужен id (первичный ключ)  вставленной записи в AUTHORTBL
-							let authorId = res.rows[0].id;
+							let authorId = res.rows[0].id; 
+//Именно здесь асинхронность NodeJS дает себя знать: в слежующем цикле each в callback-ах переменная res уже другая.
 
-							Arrays.concat(params0,[authorId,item.title,item.description,item.published]);							
+							paramsO = paramsO.concat([authorId,item.title,item.description,item.published);							
 							pg.query(sqlO, paramsO,(err,res) => {
 								if (err) {
 									conso;e.error('Error inserting author: +err');

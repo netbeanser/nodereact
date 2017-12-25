@@ -1,3 +1,9 @@
+////Этот файл приведен в целях иллюстрации использования Promise при 
+//обращении к БД (в отличие от модуля mnopus_0.js, где использованы callbacks). 
+//Все это прекрасно работает, но из-за цикла по документам 
+// коллекции MongoDbне  - не в данном случае.
+// Работающий вариант - в модуле mmopus.js, где использовано синхронное API для доступа к Postgres
+
 const mn = require('../../db/mdb');
 const pg = require('pg');
 const http = require('http');
@@ -7,10 +13,8 @@ const wss = new WebSocket.Server({host: 'localhost', port: 33712, path: '/progre
 
 
 wss.on('listening', () => console.log('WSS listening'));
-//wss.clients.forEach(ws => ws.send('Fuck   Ya!!!'));
 wss.on('connection', (ws,req) => {
 	console.log('WSS Connected: ' + req.connection.remoteAddress);
-//	ws.send('{ "mnopus": "Hi there!!!"}');
 	_dissectDoc();
 });
 
@@ -39,7 +43,7 @@ function _dissectDoc () {
 	//On CONFLICT - это фишка Postgres. На поле name в таблице AUTHORTBL приделан униувльный ключ.
 	//Она используется здесь, чтобы избежать при вставке новой записи конфликта по полю name
 
-	const sqlO = 'INSERT INTO OPUSTBL (authorid,title,description,published) VALUES($1,$2,$3,$4) REURNING *';
+	const sqlO = 'INSERT INTO OPUSTBL (authorid,title,description,published) VALUES($1,$2,$3,$4) RETURNING *';
 
 	mn.getMongoDb()
 	.then((mdb) => {
@@ -83,7 +87,7 @@ function _dissectDoc () {
 							let authorId = resA.rows[0].id;
 
 							let paramsO = [];
-							Arrays.concat(params0,[authorId,item.title,item.description,item.published]);							
+							paramsO = paramsO.concat([authorId,item.title,item.description,item.published);							
 
 							const insert0 = {
 								name: 'insertO',
