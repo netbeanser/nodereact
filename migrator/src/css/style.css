@@ -1,0 +1,40 @@
+table {
+    border-collapse: collapse;
+    width: 90%;
+}
+
+table, th, td {
+	border: 1px solid black;	
+}
+
+thead
+{
+	display: block;
+	width: 90%;
+	overflow: auto;
+	color: #fff;
+	background: #000;
+}
+
+.v-scroll {
+	display: block;
+	overflow-y: auto;
+	height: 200px;
+}
+
+th,td {
+	padding: 15px;
+	height: 10px;
+}
+
+th {
+	background-color: #000;
+	color: #fff;
+	text-decoration: underline;
+
+}
+
+tr:nth-child(even) {
+	background-color: #f2f2f2;
+}
+

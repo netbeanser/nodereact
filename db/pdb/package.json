@@ -1,0 +1,4 @@
+{ 
+	"name" : "pgstart",
+	"main" : "pgstart.js"
+}
